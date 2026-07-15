@@ -90,35 +90,67 @@ public class ContainerService {
         return containerMapper.toResponse(containerRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Container not found")));
     }
 
-    @Transactional
-    public ContainerResponse updateContainer(Long id, CreateContainerRequest request) {
-        Container container = containerRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Container not found"));
-        container.setRegistrationNumber(request.getRegistrationNumber());
-        container.setState(request.getState());
-        container.setType(request.getType());
-        return containerMapper.toResponse(containerRepository.save(container));
-    }
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<ContainerResponse> searchContainers(
+        String query,
+        ContainerType type,
+        ContainerState state,
+        String block,
+        String line,
+        LocalDateTime start,
+        LocalDateTime end,
+        org.springframework.data.domain.Pageable pageable
+    ) {
+        org.springframework.data.jpa.domain.Specification<Container> spec = (root, criteriaQuery, cb) -> cb.conjunction();
 
-    @Transactional
-    public void deleteContainer(Long id) {
-        Container container = containerRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Container not found"));
-        container.getPlaces().forEach(place -> place.setState(PlaceState.FREE));
-        placeRepository.saveAll(container.getPlaces());
-        containerRepository.delete(container);
+        if (query != null && !query.isBlank()) {
+            String like = "%" + query.toLowerCase() + "%";
+            spec = spec.and((root, criteriaQuery, cb) -> cb.or(
+                cb.like(cb.lower(root.get("registrationNumber")), like),
+                cb.like(cb.lower(root.get("allocationCode")), like),
+                cb.like(cb.lower(cb.concat(cb.concat(root.get("agent").get("firstName"), " "), root.get("agent").get("lastName"))), like)
+            ));
+        }
+        if (type != null) {
+            spec = spec.and((root, criteriaQuery, cb) -> cb.equal(root.get("type"), type));
+        }
+        if (state != null) {
+            spec = spec.and((root, criteriaQuery, cb) -> cb.equal(root.get("state"), state));
+        }
+        if (block != null && !block.isBlank()) {
+            spec = spec.and((root, criteriaQuery, cb) -> cb.equal(cb.lower(root.get("block").get("name")), block.toLowerCase()));
+        }
+        if (line != null && !line.isBlank()) {
+            spec = spec.and((root, criteriaQuery, cb) -> cb.equal(cb.lower(root.get("line").get("name")), line.toLowerCase()));
+        }
+        if (start != null) {
+            spec = spec.and((root, criteriaQuery, cb) -> cb.greaterThanOrEqualTo(root.get("entryDateTime"), start));
+        }
+        if (end != null) {
+            spec = spec.and((root, criteriaQuery, cb) -> cb.lessThanOrEqualTo(root.get("entryDateTime"), end));
+        }
+
+        return containerRepository.findAll(spec, pageable).map(containerMapper::toResponse);
     }
 
     @Transactional
     public ContainerResponse releaseContainer(Long id, User agent) {
         Container container = containerRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Container not found"));
         String previousAllocation = container.getAllocationCode();
+        ContainerState previousState = container.getState();
+        container.setExitDateTime(LocalDateTime.now());
+        container.setState(ContainerState.EMPTY);
+
+        // Movement must be recorded while the allocation/bloc/ligne/places snapshot is still intact.
+        MovementType exitMovementType = previousState == ContainerState.FULL ? MovementType.EXIT_FULL : MovementType.EXIT_EMPTY;
+        movementService.createMovementForContainer(container, agent, exitMovementType);
+
         container.getPlaces().forEach(place -> place.setState(PlaceState.FREE));
         placeRepository.saveAll(container.getPlaces());
         container.getPlaces().clear();
         container.setBlock(null);
         container.setLine(null);
         container.setAllocationCode(null);
-        container.setExitDateTime(LocalDateTime.now());
-        container.setState(ContainerState.EMPTY);
         Container saved = containerRepository.save(container);
 
         History history = new History();
@@ -130,7 +162,6 @@ public class ContainerService {
         history.setDetails("Sortie de conteneur");
         historyRepository.save(history);
 
-        movementService.createMovementForContainer(saved, agent, MovementType.EXIT_EMPTY);
         return containerMapper.toResponse(saved);
     }
 

@@ -36,7 +36,7 @@ public class HistoryMapper {
             response.setMovementLabel(
                 history.getOperation() == com.somaport.backend.domain.HistoryOperation.ENTRY
                     ? (history.getContainer().getState() == com.somaport.backend.domain.ContainerState.FULL ? "ENP" : "ENV")
-                    : "EXIT_EMPTY"
+                    : "EXIT"
             );
         }
 

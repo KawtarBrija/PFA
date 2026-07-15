@@ -4,6 +4,7 @@ import com.somaport.backend.domain.Role;
 import com.somaport.backend.domain.RoleName;
 import com.somaport.backend.domain.User;
 import com.somaport.backend.dto.RegisterRequest;
+import com.somaport.backend.dto.UpdateUserRequest;
 import com.somaport.backend.dto.UserResponse;
 import com.somaport.backend.exception.BadRequestException;
 import com.somaport.backend.exception.ConflictException;
@@ -53,16 +54,17 @@ public class UserService {
     }
 
     @Transactional
-    public UserResponse updateUser(Long id, RegisterRequest request) {
+    public UserResponse updateUser(Long id, UpdateUserRequest request) {
         User user = userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User not found"));
         user.setFirstName(request.getFirstName());
         user.setLastName(request.getLastName());
+        user.setEmail(request.getEmail());
         user.setPhone(request.getPhone());
-        if (request.getRoleName() != null) {
-            Role role = roleRepository.findByName(request.getRoleName())
-                .orElseThrow(() -> new BadRequestException("Role not found"));
-            user.setRole(role);
-        }
+
+        Role role = roleRepository.findByName(request.getRoleName() == null ? RoleName.AGENT : request.getRoleName())
+            .orElseThrow(() -> new BadRequestException("Role not found"));
+        user.setRole(role);
+
         return userMapper.toResponse(userRepository.save(user));
     }
 
@@ -74,11 +76,32 @@ public class UserService {
         userRepository.deleteById(id);
     }
 
-    public List<UserResponse> searchUsers(String query) {
-        return userRepository.findAll().stream()
-            .filter(user -> user.getFirstName().toLowerCase().contains(query.toLowerCase())
-                || user.getLastName().toLowerCase().contains(query.toLowerCase())
-                || user.getEmail().toLowerCase().contains(query.toLowerCase()))
-            .map(userMapper::toResponse).toList();
+    @Transactional
+    public void resetPassword(Long id, com.somaport.backend.dto.ResetPasswordRequest request) {
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new BadRequestException("Passwords do not match");
+        }
+        User user = userRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
     }
+
+    public List<UserResponse> searchUsers(String query, RoleName roleName) {
+        String q = query == null ? "" : query.toLowerCase();
+
+        return userRepository.findAll().stream()
+            .filter(user -> {
+                boolean matchesQuery = q.isEmpty()
+                    || user.getFirstName().toLowerCase().contains(q)
+                    || user.getLastName().toLowerCase().contains(q)
+                    || user.getEmail().toLowerCase().contains(q);
+
+                boolean matchesRole = roleName == null || (user.getRole() != null && user.getRole().getName() == roleName);
+
+                return matchesQuery && matchesRole;
+            })
+            .map(userMapper::toResponse)
+            .toList();
+    }
+
 }

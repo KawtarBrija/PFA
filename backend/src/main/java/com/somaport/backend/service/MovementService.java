@@ -34,7 +34,9 @@ public class MovementService {
         movement.setTypeIso(savedContainer.getType());
         movement.setBloc(savedContainer.getBlock() != null ? savedContainer.getBlock().getName() : null);
         movement.setLigne(savedContainer.getLine() != null ? savedContainer.getLine().getName() : null);
-        movement.setPlaces(savedContainer.getPlaces() != null ? savedContainer.getPlaces().toString() : null);
+        movement.setPlaces(savedContainer.getPlaces() != null && !savedContainer.getPlaces().isEmpty()
+            ? savedContainer.getPlaces().stream().map(place -> String.valueOf(place.getNumber())).collect(java.util.stream.Collectors.joining(","))
+            : null);
 
         Movement saved = movementRepository.save(movement);
         return movementMapper.toResponse(saved);
@@ -51,31 +53,58 @@ public class MovementService {
 
     @Transactional(readOnly = true)
     public Page<MovementResponse> searchMovements(User currentUser,
-                                                   MovementType movementType,
+                                                   String query,
+                                                   String label,
+                                                   String agent,
                                                    LocalDateTime start,
                                                    LocalDateTime end,
                                                    Pageable pageable) {
 
-        Page<Movement> page;
-        boolean isAgent = currentUser.getRole().getName() == RoleName.AGENT;
+        org.springframework.data.jpa.domain.Specification<Movement> spec = (root, criteriaQuery, cb) -> cb.conjunction();
 
-        if (isAgent) {
-            if (movementType != null && start == null && end == null) {
-                page = movementRepository.findByUtilisateurConnecteAndMovementTypeOrderByDateHeureDesc(currentUser, movementType, pageable);
-            } else if (movementType == null && start != null && end != null) {
-                page = movementRepository.findByUtilisateurConnecteAndDateHeureBetweenOrderByDateHeureDesc(currentUser, start, end, pageable);
-            } else {
-                page = movementRepository.findByUtilisateurConnecteOrderByDateHeureDesc(currentUser, pageable);
-            }
-        } else {
-            if (movementType != null && start == null && end == null) {
-                page = movementRepository.findByMovementTypeOrderByDateHeureDesc(movementType, pageable);
-            } else {
-                page = movementRepository.findAllByOrderByDateHeureDesc(pageable);
-            }
+        if (currentUser.getRole().getName() == RoleName.AGENT) {
+            spec = spec.and((root, criteriaQuery, cb) -> cb.equal(root.get("utilisateurConnecte"), currentUser));
         }
 
-        return page.map(movementMapper::toResponse);
+        if (query != null && !query.isBlank()) {
+            String like = "%" + query.toLowerCase() + "%";
+            spec = spec.and((root, criteriaQuery, cb) -> cb.or(
+                cb.like(cb.lower(root.get("container").get("registrationNumber")), like),
+                cb.like(cb.lower(root.get("allocationCode")), like)
+            ));
+        }
+
+        if (agent != null && !agent.isBlank()) {
+            String like = "%" + agent.toLowerCase() + "%";
+            spec = spec.and((root, criteriaQuery, cb) -> cb.like(
+                cb.lower(cb.concat(cb.concat(root.get("utilisateurConnecte").get("firstName"), " "), root.get("utilisateurConnecte").get("lastName"))), like));
+        }
+
+        List<MovementType> types = toMovementTypes(label);
+        if (types != null && !types.isEmpty()) {
+            spec = spec.and((root, criteriaQuery, cb) -> root.get("movementType").in(types));
+        }
+
+        if (start != null) {
+            spec = spec.and((root, criteriaQuery, cb) -> cb.greaterThanOrEqualTo(root.get("dateHeure"), start));
+        }
+        if (end != null) {
+            spec = spec.and((root, criteriaQuery, cb) -> cb.lessThanOrEqualTo(root.get("dateHeure"), end));
+        }
+
+        return movementRepository.findAll(spec, pageable).map(movementMapper::toResponse);
+    }
+
+    private List<MovementType> toMovementTypes(String label) {
+        if (label == null || label.isBlank()) {
+            return null;
+        }
+        return switch (label.toUpperCase()) {
+            case "ENP" -> List.of(MovementType.ENTRY_FULL);
+            case "ENV" -> List.of(MovementType.ENTRY_EMPTY);
+            case "EXIT" -> List.of(MovementType.EXIT_FULL, MovementType.EXIT_EMPTY);
+            default -> null;
+        };
     }
 }
 

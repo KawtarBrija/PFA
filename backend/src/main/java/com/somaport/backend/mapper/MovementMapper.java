@@ -39,7 +39,7 @@ public class MovementMapper {
         return switch (movementType) {
             case ENTRY_EMPTY -> "ENV";
             case ENTRY_FULL -> "ENP";
-            default -> movementType.name();
+            case EXIT_FULL, EXIT_EMPTY -> "EXIT";
         };
     }
 }

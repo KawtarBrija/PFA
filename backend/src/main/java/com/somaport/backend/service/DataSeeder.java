@@ -16,14 +16,16 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 @RequiredArgsConstructor
 public class DataSeeder {
 
-    private static final String ADMIN_EMAIL = "admin@sommaport.com";
-    private static final String LEGACY_ADMIN_EMAIL = "admin@somaport.com";
+    private static final String ADMIN_EMAIL = "admin@somaport.com";
+    private static final String LEGACY_ADMIN_EMAIL = "admin@sommaport.com";
     private static final String ADMIN_PASSWORD = "admin123";
 
-    private static final String SUPERVISEUR_EMAIL = "superviseur@sommaport.com";
+    private static final String SUPERVISEUR_EMAIL = "superviseur@somaport.com";
+    private static final String LEGACY_SUPERVISEUR_EMAIL = "superviseur@sommaport.com";
     private static final String SUPERVISEUR_PASSWORD = "super123";
 
-    private static final String AGENT_EMAIL = "agent@sommaport.com";
+    private static final String AGENT_EMAIL = "agent@somaport.com";
+    private static final String LEGACY_AGENT_EMAIL = "agent@sommaport.com";
     private static final String AGENT_PASSWORD = "agent123";
 
 
@@ -54,9 +56,9 @@ public class DataSeeder {
     }
 
     private void upsertDefaultUsers() {
-        upsertUser(ADMIN_EMAIL, ADMIN_PASSWORD, RoleName.ADMIN, "Admin", "SommaPort", "+212600000000", LEGACY_ADMIN_EMAIL);
-        upsertUser(SUPERVISEUR_EMAIL, SUPERVISEUR_PASSWORD, RoleName.SUPERVISOR, "Superviseur", "SommaPort", "+212600000001", null);
-        upsertUser(AGENT_EMAIL, AGENT_PASSWORD, RoleName.AGENT, "Agent", "SommaPort", "+212600000002", null);
+        upsertUser(ADMIN_EMAIL, ADMIN_PASSWORD, RoleName.ADMIN, "Admin", "SomaPort", "+212600000000", LEGACY_ADMIN_EMAIL);
+        upsertUser(SUPERVISEUR_EMAIL, SUPERVISEUR_PASSWORD, RoleName.SUPERVISOR, "Superviseur", "SomaPort", "+212600000001", LEGACY_SUPERVISEUR_EMAIL);
+        upsertUser(AGENT_EMAIL, AGENT_PASSWORD, RoleName.AGENT, "Agent", "SomaPort", "+212600000002", LEGACY_AGENT_EMAIL);
     }
 
     private void upsertUser(

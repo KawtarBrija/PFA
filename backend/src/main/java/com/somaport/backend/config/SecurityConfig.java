@@ -40,15 +40,24 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/login", "/swagger-ui/**", "/v3/api-docs/**", "/actuator/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/auth/register").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.GET, "/api/containers/**").hasAnyRole("ADMIN", "SUPERVISOR", "AGENT")
-                .requestMatchers(HttpMethod.POST, "/api/containers/**").hasAnyRole("ADMIN", "AGENT")
-                .requestMatchers(HttpMethod.PUT, "/api/containers/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/api/containers/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.GET, "/api/users/**").hasAnyRole("ADMIN", "SUPERVISOR")
+
+                // Conteneurs : consultation réservée à SUPERVISOR (Container Inventory) et AGENT (recherche pour Release).
+                // ADMIN n'a plus aucun accès aux conteneurs (menu = User Management + History uniquement).
+                .requestMatchers(HttpMethod.GET, "/api/containers/**").hasAnyRole("SUPERVISOR", "AGENT")
+                // Enregistrement d'arrivée : uniquement AGENT.
+                .requestMatchers(HttpMethod.POST, "/api/containers/*/release").hasRole("AGENT")
+                .requestMatchers(HttpMethod.POST, "/api/containers/**").hasRole("AGENT")
+
+                // Utilisateurs : réservé à ADMIN (User Management).
+                .requestMatchers(HttpMethod.GET, "/api/users/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/users/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/users/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.GET, "/api/dashboard/**").hasAnyRole("ADMIN", "SUPERVISOR")
+
+                // Mouvements : consultation réservée à SUPERVISOR (menu Movements).
+                .requestMatchers(HttpMethod.GET, "/api/movements/**").hasRole("SUPERVISOR")
+
+                // Historique : ADMIN et SUPERVISOR consultent tout, AGENT ne voit que ses propres opérations.
                 .requestMatchers(HttpMethod.GET, "/api/histories/**").hasAnyRole("ADMIN", "SUPERVISOR", "AGENT")
                 .anyRequest().authenticated())
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

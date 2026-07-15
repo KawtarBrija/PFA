@@ -13,7 +13,7 @@ import java.util.Date;
 @Component
 public class JwtUtil {
 
-    @Value("${app.jwt.secret:SommaPortSuperSecretKey1234567890}")
+    @Value("${app.jwt.secret:SomaPortSuperSecretKey1234567890}")
     private String secret;
 
     @Value("${app.jwt.expiration:86400000}")
