@@ -38,15 +38,22 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/login", "/swagger-ui/**", "/v3/api-docs/**", "/actuator/**").permitAll()
+                .requestMatchers("/api/auth/login", "/api/auth/refresh", "/swagger-ui/**", "/v3/api-docs/**", "/actuator/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/auth/register").hasRole("ADMIN")
 
                 // Conteneurs : consultation réservée à SUPERVISOR (Container Inventory) et AGENT (recherche pour Release).
                 // ADMIN n'a plus aucun accès aux conteneurs (menu = User Management + History uniquement).
                 .requestMatchers(HttpMethod.GET, "/api/containers/**").hasAnyRole("SUPERVISOR", "AGENT")
                 // Enregistrement d'arrivée : uniquement AGENT.
-                .requestMatchers(HttpMethod.POST, "/api/containers/*/release").hasRole("AGENT")
                 .requestMatchers(HttpMethod.POST, "/api/containers/**").hasRole("AGENT")
+
+                // Sorties de conteneurs : AGENT effectue la sortie, ADMIN/SUPERVISOR consultent en lecture seule.
+                .requestMatchers(HttpMethod.POST, "/api/releases/**").hasRole("AGENT")
+                .requestMatchers(HttpMethod.GET, "/api/releases/**").hasAnyRole("AGENT", "SUPERVISOR", "ADMIN")
+
+                // Profil personnel : tout utilisateur authentifié peut consulter/modifier ses propres informations.
+                .requestMatchers(HttpMethod.PUT, "/api/users/me").hasAnyRole("AGENT", "SUPERVISOR", "ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/users/me/change-password").hasAnyRole("AGENT", "SUPERVISOR", "ADMIN")
 
                 // Utilisateurs : réservé à ADMIN (User Management).
                 .requestMatchers(HttpMethod.GET, "/api/users/**").hasRole("ADMIN")
@@ -59,6 +66,9 @@ public class SecurityConfig {
 
                 // Historique : ADMIN et SUPERVISOR consultent tout, AGENT ne voit que ses propres opérations.
                 .requestMatchers(HttpMethod.GET, "/api/histories/**").hasAnyRole("ADMIN", "SUPERVISOR", "AGENT")
+
+                // Journal d'audit / sécurité : réservé à ADMIN.
+                .requestMatchers(HttpMethod.GET, "/api/audit-logs/**").hasRole("ADMIN")
                 .anyRequest().authenticated())
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();

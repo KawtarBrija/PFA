@@ -34,12 +34,15 @@ public class MovementMapper {
         return response;
     }
 
-    private String mapMovementLabel(MovementType movementType) {
+    String mapMovementLabel(MovementType movementType) {
         if (movementType == null) return null;
         return switch (movementType) {
             case ENTRY_EMPTY -> "ENV";
             case ENTRY_FULL -> "ENP";
             case EXIT_FULL, EXIT_EMPTY -> "EXIT";
+            case CHARGEMENT -> "Chargé";
+            case DECHARGEMENT -> "Déchargé";
+            case AUCUN -> "Aucun";
         };
     }
 }

@@ -7,9 +7,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ContainerRepository extends JpaRepository<Container, Long>, JpaSpecificationExecutor<Container> {
     List<Container> findByState(ContainerState state);
     List<Container> findByType(ContainerType type);
     List<Container> findAllByOrderByEntryDateTimeDesc();
+    Optional<Container> findByRegistrationNumber(String registrationNumber);
 }

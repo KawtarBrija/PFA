@@ -22,6 +22,11 @@ public class MovementService {
 
     @Transactional
     public MovementResponse createMovementForContainer(Container savedContainer, User agent, MovementType movementType) {
+        return createMovementForContainer(savedContainer, agent, movementType, null);
+    }
+
+    @Transactional
+    public MovementResponse createMovementForContainer(Container savedContainer, User agent, MovementType movementType, ContainerState etatOverride) {
         Movement movement = new Movement();
         movement.setContainer(savedContainer);
         movement.setMovementType(movementType);
@@ -30,7 +35,7 @@ public class MovementService {
         movement.setAllocationCode(savedContainer.getAllocationCode());
         movement.setRemarque(null);
 
-        movement.setEtat(savedContainer.getState());
+        movement.setEtat(etatOverride != null ? etatOverride : savedContainer.getState());
         movement.setTypeIso(savedContainer.getType());
         movement.setBloc(savedContainer.getBlock() != null ? savedContainer.getBlock().getName() : null);
         movement.setLigne(savedContainer.getLine() != null ? savedContainer.getLine().getName() : null);
@@ -102,7 +107,8 @@ public class MovementService {
         return switch (label.toUpperCase()) {
             case "ENP" -> List.of(MovementType.ENTRY_FULL);
             case "ENV" -> List.of(MovementType.ENTRY_EMPTY);
-            case "EXIT" -> List.of(MovementType.EXIT_FULL, MovementType.EXIT_EMPTY);
+            case "EXIT" -> List.of(MovementType.EXIT_FULL, MovementType.EXIT_EMPTY,
+                MovementType.CHARGEMENT, MovementType.DECHARGEMENT, MovementType.AUCUN);
             default -> null;
         };
     }

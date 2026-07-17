@@ -1,89 +1,112 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
-import { FaArrowRight, FaLock, FaShip } from 'react-icons/fa';
+import Swal from 'sweetalert2';
+import { FaArrowRight, FaEye, FaEyeSlash, FaLock } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
+import Logo from '../../components/common/Logo';
 
 export default function LoginPage() {
   const { login, token } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ email: '', password: '' });
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting }
+  } = useForm({ defaultValues: { email: '', password: '' } });
 
   useEffect(() => {
     if (token) navigate('/');
   }, [token, navigate]);
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    setSubmitting(true);
-    setError('');
-
+  const onSubmit = async (values) => {
     try {
-      await login(form);
+      await login(values);
       navigate('/');
     } catch (err) {
-      setError(err?.response?.data?.message || 'Unable to sign in. Verify your credentials.');
-    } finally {
-      setSubmitting(false);
+      Swal.fire({
+        icon: 'error',
+        title: 'Connexion impossible',
+        text: err?.response?.data?.message || 'Vérifiez votre email et votre mot de passe.'
+      });
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-10">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-900 via-black to-black px-4 py-10">
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-5xl overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/80 shadow-2xl backdrop-blur"
+        transition={{ duration: 0.4 }}
+        className="w-full max-w-5xl overflow-hidden rounded-3xl border border-white/10 bg-surface shadow-2xl"
       >
         <div className="grid lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="bg-gradient-to-br from-brand-700 via-blue-700 to-slate-900 p-8 text-slate-100">
-            <div className="flex items-center gap-3 text-xl font-semibold">
-              <FaShip className="text-2xl" />
-              SomaPort Control Center
+          <div className="flex flex-col justify-between bg-gradient-to-br from-brand-600 via-brand-700 to-black p-8 text-white sm:p-10">
+            <div className="flex items-center gap-3">
+              <Logo size="md" />
+              <span className="text-xl font-semibold">SomaPort</span>
             </div>
-            <p className="mt-4 max-w-md text-sm text-slate-200">
-              Coordinate container flows, monitor place occupancy, and keep every operation traceable from a single secure workspace.
-            </p>
+            <div className="mt-10">
+              <h1 className="text-2xl font-semibold leading-snug sm:text-3xl">
+                SomaPort Container Management System
+              </h1>
+              <p className="mt-4 max-w-md text-sm text-white/80">
+                Coordonnez les flux de conteneurs, suivez l'occupation des places et gardez chaque opération traçable
+                depuis un espace de travail sécurisé.
+              </p>
+            </div>
+            <p className="mt-10 text-xs uppercase tracking-[0.3em] text-white/50">Terminal portuaire · SomaPort</p>
           </div>
 
           <div className="p-8 sm:p-10">
-            <div className="flex items-center gap-2 text-brand-500">
+            <div className="flex items-center gap-2 text-brand-600">
               <FaLock />
-              <span className="text-sm font-semibold uppercase tracking-[0.2em]">Secure sign in</span>
+              <span className="text-sm font-semibold uppercase tracking-[0.2em]">Connexion sécurisée</span>
             </div>
-            <h2 className="mt-4 text-3xl font-semibold text-slate-100">Welcome back</h2>
-            <p className="mt-2 text-sm text-slate-400">Sign in to access your workspace.</p>
+            <h2 className="mt-4 text-3xl font-semibold text-ink">Bienvenue</h2>
+            <p className="mt-2 text-sm text-ink-muted">Connectez-vous pour accéder à votre espace de travail.</p>
 
-            <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
+            <form className="mt-8 space-y-4" onSubmit={handleSubmit(onSubmit)} noValidate>
               <div>
-                <label className="mb-2 block text-sm text-slate-300">Email</label>
+                <label className="mb-2 block text-sm text-ink-muted">Email</label>
                 <input
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-slate-100 outline-none focus:border-brand-500"
+                  className="w-full rounded-xl border border-border-default bg-surface-2 px-4 py-3 text-ink outline-none transition focus:border-brand-500"
                   type="email"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  required
+                  autoComplete="username"
+                  {...register('email', { required: true })}
                 />
+                {errors.email ? <p className="mt-1 text-xs text-rose-500">L'email est requis.</p> : null}
               </div>
               <div>
-                <label className="mb-2 block text-sm text-slate-300">Password</label>
-                <input
-                  className="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-slate-100 outline-none focus:border-brand-500"
-                  type="password"
-                  value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  required
-                />
+                <label className="mb-2 block text-sm text-ink-muted">Mot de passe</label>
+                <div className="relative">
+                  <input
+                    className="w-full rounded-xl border border-border-default bg-surface-2 px-4 py-3 pr-11 text-ink outline-none transition focus:border-brand-500"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    {...register('password', { required: true })}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-ink-faint transition hover:text-ink"
+                    aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                  >
+                    {showPassword ? <FaEyeSlash /> : <FaEye />}
+                  </button>
+                </div>
+                {errors.password ? <p className="mt-1 text-xs text-rose-500">Le mot de passe est requis.</p> : null}
               </div>
-              {error ? <p className="text-sm text-rose-400">{error}</p> : null}
+
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={isSubmitting}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-3 font-medium text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {submitting ? 'Signing in...' : 'Sign in'}
+                {isSubmitting ? 'Connexion...' : 'Se connecter'}
                 <FaArrowRight />
               </button>
             </form>

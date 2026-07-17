@@ -19,9 +19,9 @@ export default function SortableHeader({ field, label, sort, onSortChange }) {
 
   return (
     <th className="py-3">
-      <button type="button" onClick={toggle} className="flex items-center gap-1.5 text-left transition hover:text-slate-100">
+      <button type="button" onClick={toggle} className="flex items-center gap-1.5 text-left transition hover:text-ink">
         {label}
-        <Icon className={isActive ? 'text-brand-400' : 'text-slate-600'} />
+        <Icon className={isActive ? 'text-brand-600' : 'text-ink-faint'} />
       </button>
     </th>
   );

@@ -1,14 +1,13 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import api from '../services/api';
+import { clearTokens, getAccessToken, getRefreshToken, setTokens } from '../services/tokenStorage';
 
 const AuthContext = createContext(null);
 
-const TOKEN_KEY = 'somaport_token';
-
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(localStorage.getItem(TOKEN_KEY));
+  const [token, setToken] = useState(getAccessToken());
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(Boolean(localStorage.getItem(TOKEN_KEY)));
+  const [loading, setLoading] = useState(Boolean(getAccessToken()));
 
   useEffect(() => {
     if (!token) {
@@ -24,7 +23,7 @@ export function AuthProvider({ children }) {
         if (!cancelled) setUser(data);
       } catch {
         if (!cancelled) {
-          localStorage.removeItem(TOKEN_KEY);
+          clearTokens();
           setToken(null);
           setUser(null);
         }
@@ -41,18 +40,26 @@ export function AuthProvider({ children }) {
 
   const login = async (credentials) => {
     const { data } = await api.post('/auth/login', credentials);
-    localStorage.setItem(TOKEN_KEY, data.accessToken);
+    setTokens(data.accessToken, data.refreshToken);
     setToken(data.accessToken);
     setUser(data.user);
   };
 
-  const logout = () => {
-    localStorage.removeItem(TOKEN_KEY);
+  const logout = async () => {
+    const refreshToken = getRefreshToken();
+    if (refreshToken) {
+      try {
+        await api.post('/auth/logout', { refreshToken });
+      } catch {
+        // best-effort: proceed with local logout even if the server call fails
+      }
+    }
+    clearTokens();
     setToken(null);
     setUser(null);
   };
 
-  const value = useMemo(() => ({ token, user, loading, login, logout }), [token, user, loading]);
+  const value = useMemo(() => ({ token, user, loading, login, logout, setUser }), [token, user, loading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

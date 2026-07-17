@@ -1,11 +1,15 @@
 package com.somaport.backend.service;
 
+import com.somaport.backend.domain.AuditEventType;
+import com.somaport.backend.domain.RefreshToken;
 import com.somaport.backend.domain.Role;
 import com.somaport.backend.domain.RoleName;
 import com.somaport.backend.domain.User;
 import com.somaport.backend.dto.AuthLoginRequest;
 import com.somaport.backend.dto.AuthResponse;
+import com.somaport.backend.dto.RefreshTokenRequest;
 import com.somaport.backend.dto.RegisterRequest;
+import com.somaport.backend.dto.TokenRefreshResponse;
 import com.somaport.backend.dto.UserResponse;
 import com.somaport.backend.exception.BadRequestException;
 import com.somaport.backend.exception.ConflictException;
@@ -13,15 +17,22 @@ import com.somaport.backend.mapper.UserMapper;
 import com.somaport.backend.repository.RoleRepository;
 import com.somaport.backend.repository.UserRepository;
 import com.somaport.backend.security.JwtUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Duration;
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +45,14 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtUtil jwtUtil;
     private final UserMapper userMapper;
+    private final RefreshTokenService refreshTokenService;
+    private final AuditLogService auditLogService;
+
+    @Value("${app.security.max-failed-attempts:5}")
+    private int maxFailedAttempts;
+
+    @Value("${app.security.lockout-duration-minutes:15}")
+    private long lockoutDurationMinutes;
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -55,19 +74,69 @@ public class AuthService {
         user.setRole(role);
         userRepository.save(user);
         log.info("Registered new user {}", user.getEmail());
-        String token = jwtUtil.generateToken(user.getEmail());
-        return new AuthResponse(token, "Bearer", userMapper.toResponse(user));
+        String accessToken = jwtUtil.generateToken(user.getEmail());
+        RefreshToken refreshToken = refreshTokenService.create(user);
+        return new AuthResponse(accessToken, refreshToken.getToken(), "Bearer", userMapper.toResponse(user));
     }
 
-    public AuthResponse login(AuthLoginRequest request) {
-        Authentication authentication = authenticationManager.authenticate(
-            new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-        );
-        SecurityContextHolder.getContext().setAuthentication(authentication);
+    @Transactional
+    public AuthResponse login(AuthLoginRequest request, HttpServletRequest httpRequest) {
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+            );
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+        } catch (LockedException ex) {
+            auditLogService.log(AuditEventType.LOGIN_FAILURE, null, request.getEmail(), httpRequest, "Account locked");
+            throw new BadRequestException("Account temporarily locked due to repeated failed attempts. Try again later.");
+        } catch (BadCredentialsException ex) {
+            handleFailedAttempt(request.getEmail(), httpRequest);
+            throw new BadRequestException("Invalid email or password");
+        }
+
         User user = userRepository.findByEmail(request.getEmail())
             .orElseThrow(() -> new BadRequestException("Invalid email or password"));
-        String token = jwtUtil.generateToken(user.getEmail());
-        return new AuthResponse(token, "Bearer", userMapper.toResponse(user));
+
+        user.setFailedLoginAttempts(0);
+        user.setLockedUntil(null);
+        userRepository.save(user);
+        auditLogService.log(AuditEventType.LOGIN_SUCCESS, user, user.getEmail(), httpRequest, null);
+
+        String accessToken = jwtUtil.generateToken(user.getEmail());
+        RefreshToken refreshToken = refreshTokenService.create(user);
+        return new AuthResponse(accessToken, refreshToken.getToken(), "Bearer", userMapper.toResponse(user));
+    }
+
+    private void handleFailedAttempt(String email, HttpServletRequest httpRequest) {
+        userRepository.findByEmail(email).ifPresentOrElse(user -> {
+            user.setFailedLoginAttempts(user.getFailedLoginAttempts() + 1);
+            if (user.getFailedLoginAttempts() >= maxFailedAttempts) {
+                user.setLockedUntil(LocalDateTime.now().plus(Duration.ofMinutes(lockoutDurationMinutes)));
+                userRepository.save(user);
+                auditLogService.log(AuditEventType.ACCOUNT_LOCKED, user, email, httpRequest,
+                    "Locked after " + user.getFailedLoginAttempts() + " failed attempts");
+            } else {
+                userRepository.save(user);
+                auditLogService.log(AuditEventType.LOGIN_FAILURE, user, email, httpRequest, null);
+            }
+        }, () -> auditLogService.log(AuditEventType.LOGIN_FAILURE, null, email, httpRequest, "Unknown email"));
+    }
+
+    @Transactional
+    public TokenRefreshResponse refreshAccessToken(RefreshTokenRequest request) {
+        RefreshToken refreshToken = refreshTokenService.verify(request.getRefreshToken());
+        User user = refreshToken.getUser();
+        refreshTokenService.revoke(refreshToken.getToken());
+        RefreshToken newRefreshToken = refreshTokenService.create(user);
+        String accessToken = jwtUtil.generateToken(user.getEmail());
+        return new TokenRefreshResponse(accessToken, newRefreshToken.getToken(), "Bearer");
+    }
+
+    @Transactional
+    public void logout(RefreshTokenRequest request, HttpServletRequest httpRequest) {
+        RefreshToken refreshToken = refreshTokenService.verify(request.getRefreshToken());
+        refreshTokenService.revoke(refreshToken.getToken());
+        auditLogService.log(AuditEventType.LOGOUT, refreshToken.getUser(), refreshToken.getUser().getEmail(), httpRequest, null);
     }
 
     public UserResponse getCurrentUser() {

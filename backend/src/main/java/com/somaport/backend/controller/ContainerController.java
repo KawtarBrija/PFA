@@ -55,10 +55,4 @@ public class ContainerController {
         org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size, org.springframework.data.domain.Sort.by(direction, sortParts[0]));
         return ResponseEntity.ok(containerService.searchContainers(query, type, state, block, line, start, end, pageable));
     }
-
-    @PostMapping("/{id}/release")
-    public ResponseEntity<ContainerResponse> releaseContainer(@PathVariable Long id,
-                                                             @AuthenticationPrincipal User agent) {
-        return ResponseEntity.ok(containerService.releaseContainer(id, agent));
-    }
 }

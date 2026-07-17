@@ -4,14 +4,34 @@
 
 :root {
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  color: #f8fafc;
-  background-color: #020617;
+
+  /* Light theme (default) */
+  --surface: 255 255 255;
+  --surface-2: 245 247 248;
+  --surface-3: 235 238 240;
+  --ink: 17 17 17;
+  --ink-muted: 91 97 104;
+  --ink-faint: 138 144 153;
+  --border-default: 226 229 232;
+}
+
+:root.dark {
+  /* Dark theme */
+  --surface: 17 17 17;
+  --surface-2: 24 24 24;
+  --surface-3: 34 34 34;
+  --ink: 245 247 248;
+  --ink-muted: 163 169 174;
+  --ink-faint: 107 113 120;
+  --border-default: 45 45 45;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  background: linear-gradient(135deg, #020617 0%, #0f172a 100%);
+  background-color: rgb(var(--surface));
+  color: rgb(var(--ink));
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 * {

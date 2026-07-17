@@ -4,6 +4,9 @@ public enum MovementType {
     ENTRY_FULL,
     ENTRY_EMPTY,
     EXIT_FULL,
-    EXIT_EMPTY
+    EXIT_EMPTY,
+    CHARGEMENT,
+    DECHARGEMENT,
+    AUCUN
 }
 

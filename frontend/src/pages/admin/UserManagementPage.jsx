@@ -5,9 +5,18 @@ import { FaKey, FaPlus, FaSearch, FaTrash, FaUserEdit, FaUsers } from 'react-ico
 import api from '../../services/api';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import Pagination from '../../components/common/Pagination';
+import ExportButtons from '../../components/common/ExportButtons';
 import { formatDateTime } from '../../utils/format';
 
 const ROLES = ['AGENT', 'SUPERVISOR', 'ADMIN'];
+const EXPORT_COLUMNS = [
+  { key: 'lastName', label: 'Nom' },
+  { key: 'firstName', label: 'Prenom' },
+  { key: 'email', label: 'Email' },
+  { key: 'phone', label: 'Telephone' },
+  { key: 'roleName', label: 'Role' },
+  { key: 'createdAt', label: 'Date de creation' }
+];
 const PAGE_SIZE = 10;
 
 export default function UserManagementPage() {
@@ -54,19 +63,19 @@ export default function UserManagementPage() {
       cancelButtonText: 'Cancel',
       html: `
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-left">
-          <label class="text-sm text-slate-200">First name</label>
+          <label class="text-sm text-ink">First name</label>
           <input id="firstName" class="swal2-input" value="${user.firstName || ''}" />
 
-          <label class="text-sm text-slate-200">Last name</label>
+          <label class="text-sm text-ink">Last name</label>
           <input id="lastName" class="swal2-input" value="${user.lastName || ''}" />
 
-          <label class="text-sm text-slate-200">Email</label>
+          <label class="text-sm text-ink">Email</label>
           <input id="email" class="swal2-input" type="email" value="${user.email || ''}" />
 
-          <label class="text-sm text-slate-200">Phone</label>
+          <label class="text-sm text-ink">Phone</label>
           <input id="phone" class="swal2-input" value="${user.phone || ''}" />
 
-          <label class="text-sm text-slate-200">Role</label>
+          <label class="text-sm text-ink">Role</label>
           <select id="roleName" class="swal2-input">
             ${ROLES.map((role) => `<option value="${role}" ${user.roleName === role ? 'selected' : ''}>${role}</option>`).join('')}
           </select>
@@ -132,10 +141,10 @@ export default function UserManagementPage() {
       cancelButtonText: 'Cancel',
       html: `
         <div class="grid grid-cols-1 gap-3 text-left">
-          <label class="text-sm text-slate-200">New password</label>
+          <label class="text-sm text-ink">New password</label>
           <input id="newPassword" type="password" class="swal2-input" minlength="6" />
 
-          <label class="text-sm text-slate-200">Confirm password</label>
+          <label class="text-sm text-ink">Confirm password</label>
           <input id="confirmPassword" type="password" class="swal2-input" minlength="6" />
         </div>
       `,
@@ -169,15 +178,15 @@ export default function UserManagementPage() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
+      <div className="rounded-3xl border border-border-default bg-surface-2 p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-600/20 text-brand-400">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-600/15 text-brand-600">
               <FaUsers className="text-lg" />
             </div>
             <div>
               <h2 className="text-xl font-semibold">User Management</h2>
-              <p className="text-sm text-slate-400">Create, update, and manage every account. Passwords are never displayed.</p>
+              <p className="text-sm text-ink-faint">Create, update, and manage every account. Passwords are never displayed.</p>
             </div>
           </div>
           <button
@@ -191,16 +200,16 @@ export default function UserManagementPage() {
 
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           <div className="relative md:col-span-2">
-            <FaSearch className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+            <FaSearch className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-faint" />
             <input
-              className="w-full rounded-xl border border-slate-700 bg-slate-950/70 py-3 pl-11 pr-4 text-slate-100 outline-none focus:border-brand-500"
+              className="w-full rounded-xl border border-border-default bg-surface py-3 pl-11 pr-4 text-ink outline-none focus:border-brand-500"
               placeholder="Search by name or email..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
           <select
-            className="rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-slate-100"
+            className="rounded-xl border border-border-default bg-surface px-4 py-3 text-ink"
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
           >
@@ -214,11 +223,14 @@ export default function UserManagementPage() {
         {showCreateForm ? <CreateUserForm onCreated={() => { setShowCreateForm(false); loadUsers(); }} /> : null}
       </div>
 
-      <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-6">
-        <h3 className="text-lg font-semibold">Team roster</h3>
+      <div className="rounded-3xl border border-border-default bg-surface-2 p-6">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-lg font-semibold text-ink">Team roster</h3>
+          <ExportButtons columns={EXPORT_COLUMNS} rows={pagedUsers} filename="users" />
+        </div>
         <div className="mt-6 overflow-x-auto">
           <table className="min-w-full text-left text-sm">
-            <thead className="text-slate-400">
+            <thead className="text-ink-faint">
               <tr>
                 <th className="py-3">Nom</th>
                 <th className="py-3">Prenom</th>
@@ -231,24 +243,24 @@ export default function UserManagementPage() {
             </thead>
             <tbody>
               {pagedUsers.map((u) => (
-                <tr key={u.id} className="border-t border-slate-800">
-                  <td className="py-3 text-slate-100">{u.lastName}</td>
-                  <td className="py-3 text-slate-100">{u.firstName}</td>
+                <tr key={u.id} className="border-t border-border-default">
+                  <td className="py-3 text-ink">{u.lastName}</td>
+                  <td className="py-3 text-ink">{u.firstName}</td>
                   <td className="py-3">{u.email}</td>
                   <td className="py-3">{u.phone || '—'}</td>
                   <td className="py-3">
-                    <span className="rounded-full border border-slate-700 px-3 py-1 text-xs uppercase tracking-wide text-slate-300">{u.roleName}</span>
+                    <span className="rounded-full border border-border-default px-3 py-1 text-xs uppercase tracking-wide text-ink-muted">{u.roleName}</span>
                   </td>
                   <td className="py-3">{formatDateTime(u.createdAt)}</td>
                   <td className="py-3">
                     <div className="flex flex-wrap gap-2">
-                      <button type="button" onClick={() => askAndUpdateUser(u)} className="flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-2 text-slate-100 transition hover:bg-slate-700">
+                      <button type="button" onClick={() => askAndUpdateUser(u)} className="flex items-center gap-1.5 rounded-lg bg-surface-3 px-3 py-2 text-ink transition hover:bg-border-default">
                         <FaUserEdit /> Edit
                       </button>
-                      <button type="button" onClick={() => askAndResetPassword(u)} className="flex items-center gap-1.5 rounded-lg border border-slate-700 px-3 py-2 text-slate-200 transition hover:bg-slate-800">
+                      <button type="button" onClick={() => askAndResetPassword(u)} className="flex items-center gap-1.5 rounded-lg border border-border-default px-3 py-2 text-ink transition hover:bg-surface-3">
                         <FaKey /> Reset password
                       </button>
-                      <button type="button" onClick={() => askAndDeleteUser(u)} className="flex items-center gap-1.5 rounded-lg border border-rose-700 px-3 py-2 text-rose-200 transition hover:bg-rose-900/20">
+                      <button type="button" onClick={() => askAndDeleteUser(u)} className="flex items-center gap-1.5 rounded-lg border border-rose-500/40 px-3 py-2 text-rose-600 transition hover:bg-rose-500/10">
                         <FaTrash /> Delete
                       </button>
                     </div>
@@ -257,7 +269,7 @@ export default function UserManagementPage() {
               ))}
               {!loading && !pagedUsers.length ? (
                 <tr>
-                  <td colSpan="7" className="py-6 text-center text-slate-400">No users found.</td>
+                  <td colSpan="7" className="py-6 text-center text-ink-faint">No users found.</td>
                 </tr>
               ) : null}
             </tbody>
@@ -293,34 +305,34 @@ function CreateUserForm({ onCreated }) {
   };
 
   return (
-    <form className="mt-6 grid gap-4 rounded-2xl border border-slate-800 bg-slate-950/30 p-5 md:grid-cols-2" onSubmit={handleSubmit(onSubmit)}>
+    <form className="mt-6 grid gap-4 rounded-2xl border border-border-default bg-surface p-5 md:grid-cols-2" onSubmit={handleSubmit(onSubmit)}>
       <div>
-        <input className="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-slate-100" placeholder="First name" {...register('firstName', { required: true })} />
-        {errors.firstName ? <p className="mt-1 text-xs text-rose-400">First name is required.</p> : null}
+        <input className="w-full rounded-xl border border-border-default bg-surface px-4 py-3 text-ink" placeholder="First name" {...register('firstName', { required: true })} />
+        {errors.firstName ? <p className="mt-1 text-xs text-rose-500">First name is required.</p> : null}
       </div>
       <div>
-        <input className="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-slate-100" placeholder="Last name" {...register('lastName', { required: true })} />
-        {errors.lastName ? <p className="mt-1 text-xs text-rose-400">Last name is required.</p> : null}
+        <input className="w-full rounded-xl border border-border-default bg-surface px-4 py-3 text-ink" placeholder="Last name" {...register('lastName', { required: true })} />
+        {errors.lastName ? <p className="mt-1 text-xs text-rose-500">Last name is required.</p> : null}
       </div>
       <div>
-        <input className="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-slate-100" placeholder="Email" type="email" {...register('email', { required: true })} />
-        {errors.email ? <p className="mt-1 text-xs text-rose-400">A valid email is required.</p> : null}
+        <input className="w-full rounded-xl border border-border-default bg-surface px-4 py-3 text-ink" placeholder="Email" type="email" {...register('email', { required: true })} />
+        {errors.email ? <p className="mt-1 text-xs text-rose-500">A valid email is required.</p> : null}
       </div>
-      <input className="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-slate-100" placeholder="Phone" {...register('phone')} />
+      <input className="w-full rounded-xl border border-border-default bg-surface px-4 py-3 text-ink" placeholder="Phone" {...register('phone')} />
       <div>
-        <input className="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-slate-100" placeholder="Password" type="password" {...register('password', { required: true, minLength: 6 })} />
-        {errors.password ? <p className="mt-1 text-xs text-rose-400">Password must be at least 6 characters.</p> : null}
+        <input className="w-full rounded-xl border border-border-default bg-surface px-4 py-3 text-ink" placeholder="Password" type="password" {...register('password', { required: true, minLength: 6 })} />
+        {errors.password ? <p className="mt-1 text-xs text-rose-500">Password must be at least 6 characters.</p> : null}
       </div>
       <div>
         <input
-          className="w-full rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-slate-100"
+          className="w-full rounded-xl border border-border-default bg-surface px-4 py-3 text-ink"
           placeholder="Confirm password"
           type="password"
           {...register('confirmPassword', { required: true, validate: (value) => value === password || 'Passwords do not match' })}
         />
-        {errors.confirmPassword ? <p className="mt-1 text-xs text-rose-400">{errors.confirmPassword.message}</p> : null}
+        {errors.confirmPassword ? <p className="mt-1 text-xs text-rose-500">{errors.confirmPassword.message}</p> : null}
       </div>
-      <select className="rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-3 text-slate-100 md:col-span-2" {...register('roleName')}>
+      <select className="rounded-xl border border-border-default bg-surface px-4 py-3 text-ink md:col-span-2" {...register('roleName')}>
         {ROLES.map((role) => (
           <option key={role} value={role}>{role}</option>
         ))}

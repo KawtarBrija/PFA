@@ -35,7 +35,7 @@ public class ContainerMapper {
                 return switch (m.getMovementType()) {
                     case ENTRY_EMPTY -> "ENV";
                     case ENTRY_FULL -> "ENP";
-                    case EXIT_FULL, EXIT_EMPTY -> "EXIT";
+                    case EXIT_FULL, EXIT_EMPTY, CHARGEMENT, DECHARGEMENT, AUCUN -> "EXIT";
                 };
             })
             .orElse(null));

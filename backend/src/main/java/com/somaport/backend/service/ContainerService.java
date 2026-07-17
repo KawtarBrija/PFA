@@ -133,38 +133,6 @@ public class ContainerService {
         return containerRepository.findAll(spec, pageable).map(containerMapper::toResponse);
     }
 
-    @Transactional
-    public ContainerResponse releaseContainer(Long id, User agent) {
-        Container container = containerRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Container not found"));
-        String previousAllocation = container.getAllocationCode();
-        ContainerState previousState = container.getState();
-        container.setExitDateTime(LocalDateTime.now());
-        container.setState(ContainerState.EMPTY);
-
-        // Movement must be recorded while the allocation/bloc/ligne/places snapshot is still intact.
-        MovementType exitMovementType = previousState == ContainerState.FULL ? MovementType.EXIT_FULL : MovementType.EXIT_EMPTY;
-        movementService.createMovementForContainer(container, agent, exitMovementType);
-
-        container.getPlaces().forEach(place -> place.setState(PlaceState.FREE));
-        placeRepository.saveAll(container.getPlaces());
-        container.getPlaces().clear();
-        container.setBlock(null);
-        container.setLine(null);
-        container.setAllocationCode(null);
-        Container saved = containerRepository.save(container);
-
-        History history = new History();
-        history.setOperation(HistoryOperation.EXIT);
-        history.setAgent(agent);
-        history.setContainer(saved);
-        history.setPreviousAllocation(previousAllocation);
-        history.setNewAllocation(null);
-        history.setDetails("Sortie de conteneur");
-        historyRepository.save(history);
-
-        return containerMapper.toResponse(saved);
-    }
-
     private List<Place> findAvailablePlaces(ContainerType type) {
         List<Place> availablePlaces = new ArrayList<>();
         List<Block> blocks = blockRepository.findAll();
